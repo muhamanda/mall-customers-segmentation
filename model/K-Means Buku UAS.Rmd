@@ -1,0 +1,168 @@
+---
+title: "Clustering Nonhirarki (K-Means)"
+author: 'Kelompok 2: Indah Lestari, Muhammad Amanda, Syifa Azzahra'
+date: "20 Mei 2021"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import Data
+Segmentasi customer merupakan proses pengelompokan customer ke dalam kelompok-kelompok kategori berdasarkan kedekatan karakteristik yang dimiliki oleh masing-masing customer. Segmentasi customer memungkinkan perusahaan dalam memahami karakteristik konsumen pada masing-masing kelompok kategori sehingga perusahaan dapat membangun strategi pemasaran yang sesuai dengan karakteristik masing-masing kelompok kategori. Segmentasi customer umum digunakan sebagai dasar pertimbangan pelaksanaan strategi pemasaran yang banyak dilakukan oleh perusahaan didasarkan pada demografi dan perilaku customer sehingga memudahkan perusahaan untuk mengidentifikasi customer melalui karakteristik yang dimiliki. Segmentasi dilakukan dengan menggunakan metode K-means dan variabel yang menjadi dasar segmentasi yaitu kelompok usia, penghasilan, serta pengeluaran dari 200 customer mall yang menjadi responden.
+
+
+Data yang digunakan merupakan data customer mall yang terdiri dari 200 observasi dengan 5 variabel, yaitu Customer ID, usia, penghasilan (ribu $), dan nilai pengeluaran (1-100). Selanjutnya akank diolah untuk menentukan segmentasi pelanggan dengan metode Clusterin Nonhirarki, K-Means.
+
+```{r import 1}
+library(readr)
+data = read.csv("Mall_Customers.csv")
+head(data)
+```
+
+Metode K-Means hanya bisa mengolah data numerik, untuk itu Kolom yang digunakan adalah kolom 3 sampai 5 yang berisi data numerik yang disimpan dalam variabel `data_num`.
+
+```{r import 2}
+data_num = data[, 3:5]
+head(data_num)
+```
+
+## Standarisasi Data
+
+Selanjutnya melakukan standarisasi data dikarenakan skala atau range data yang belum sama. Standarisasi data menggunakan fungsi scale().
+
+```{r Standarisasi}
+data_fix = scale(data_num)
+head(data_fix)
+```
+
+
+## Menentukan jumlah cluster terbaik (K optimal)
+
+Pengujian model dilakukan untuk mengetahui seberapa dekat relasi antara objek dalam sebuah cluster dan seberapa jauh sebuah cluster terpisah dengan cluster lain. Terdapat beberapa metode yang dapat diterapkan dalam menentukan nilai K optimal.
+
+**1. Metode elbow**:
+
+Elbow criterion adalah suatu modelling criterion yang bisa digunakan untuk menentukan jumlah cluster dengan melihat perubahan antara nilai RMSSTD.Metode elbow menggunakan nilai total wss (whitin sum square) sebagai penentu k optimalnya. 
+
+RMSSTD (Root Means Square Standard Deviation) merupakan alat ukur tingkat kemiripan (homogeneity) data yang terdapat di dalam cluster yang ditemukan (within clusters). Makin rendah nilai RMSSTD makin mirip data di dalam cluster yang ditemukan.
+
+
+```{r elbow, echo=FALSE}
+library(factoextra)
+fviz_nbclust(data_fix, kmeans, method="wss")
+```
+
+Dari gambar keluaran diatas, garis mengalami patahan yang membentuk elbow atau siku pada saat k = 6. Maka dengan menggunakan metode ini diperoleh k optimal pada saat berada di k = 6. Untuk menjadi pembanding, dilakukan uji yang lainnya.
+
+**2. Metode silhouette**:
+
+Metode silhouette merupakan gabungan dari dua metode yaitu metode cohesion yang berfungsi untuk mengukur seberapa dekat relasi antara objek dalam sebuah cluster, dan metode separation yang berfungsi untuk mengukur seberapa jauh sebuah cluster terpisah dengan cluster lain. Pendekatan rata-rata nilai metode silhoutte untuk menduga kualitas dari klaster yang terbentuk. Semakin tinggi nilai rata-rata nya maka akan semakin baik. 
+
+```{r silhouette, echo=FALSE}
+fviz_nbclust(data_fix, kmeans, method="silhouette")
+```
+
+Berdasarkan hasil keluaran diatas diperoleh banyak klaster optimal yang terbentuk pada k = 8. Sedangkan opsi keduanya pada k = 6. Karena nilai rata-rata silhoutte pada k = 8 dan k = 6 merupakan yang tertinggi dari yang lain.
+
+**Metode gap statistics**:
+
+Kriteria banyak cluster optimum diberikan oleh nilai gap statistik (k) yang paling tinggi pada jumlah cluster tertentu.
+
+```{r gap, echo=FALSE}
+fviz_nbclust(data_fix, kmeans, method="gap_stat")
+```
+
+Dari hadil metode gap statistics diperoleh K = 6 sebagai nilai K yang optimal untuk membentuk klaster. 
+
+Sehingga jika dibandingkan dengan metode sebelumnya maka dapat ditarik keputusan nilai k yang optimal untuk membentuk klaster adalah 6.
+
+Kita juga dapat melihat plot data dalam ruang tiga dimensi sesuai jumlah variabel yang kita gunakan sebagai dimensinya.
+
+```{r plot, echo=FALSE}
+library(scatterplot3d)
+scatterplot3d(jitter(data_num$Age), jitter(data_num$Annual.Income..k..), jitter(data_num$Spending.Score..1.100.))
+```
+
+
+![Clustering Kmeans](E:/UNJ/Kuliah/Semester 6/Statling/Data/Clustering-Nonhirarki--K-Means.gif)
+
+Selanjutnya, kita dapat melihat terlebih dahulu korelasi antar variabel dengan fungsi cor yang terdapat pada package corrplot. Dari output diketahui bahwa tidak terdapat korelasi yang kuat antar variabel, dengan begitu kita dapat menggunakan penghitungan jarak dengan Euclidian Distance karena telah memenuhi asusmsi bahwa peubah-peubah yang diamati tidak berkorelasi dan antar peubah memiliki satuan yang sama.
+ 
+
+
+```{r cor, echo=FALSE}
+library(corrplot)
+cor_data = cor(data_num)
+corrplot(cor_data, method = "color", type = "upper")
+```
+
+
+
+## Analisis KMeans dengan kluster optimal
+
+K optimal yang telah didaptkan sebelumnya dapat kita gunakan untuk melakukan analisis cluster K-Means. Baris kedua dapat digunakan untuk memilih metode penghitungan jarak yang diinginkan, diantaranya "euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski", "pearson", "spearman" atau "kendall". Namun baris tersebut tidak kita eksekusi, karena kita akan menggunakan Euclidian Distance yang sudah secara default dipakai tanpa perlu kita atur dalam fungsi kmeans().
+ 
+```{r KMeans}
+set.seed(123)
+#data_fix = get_dist(data_num, method = "euclidean", stand = TRUE)
+clus_cust = kmeans(data_fix,6)
+clus_cust
+```
+
+Dari output dapat diketahui bahwa data customer telah dibagi ke dalam 6 kategori kelompok di mana masing-masing kelompok berujmlah 13, 57, 22, 22, 40, dan 46  serta inf0rmasi-informasi tambahan lainnya.
+
+## Anggota Klaster 
+
+Berikut kita lihat hasil clustering dari 200 customer ke dalam 6 kategori customer dengan metode K-Means
+
+```{r anggota kluster}
+data["Kategori"]=clus_cust$cluster
+head(data)
+```
+
+
+
+# Visualisasinya area pengelompokkan
+
+Visualisasi area dari hasil 6 kategori tersebut juga bisa kita lihat pada gambar.
+
+```{r clus viz, echo=FALSE}
+fviz_cluster(clus_cust, geom=c("text", "point"), data=data_num) + ggtitle("Segmentasi Customer Mall - 6 Klaster")
+```
+
+
+
+
+## Centroid klaster
+
+Untuk merepresentasikan karakteristik tiap klaster kita dapat menggunakan acuan nilai means masing-masing variabel pada tiap kelompok yang terbentuk.
+
+```{r Centroid klaster}
+aggregate(data_num, by=list(clus_cust$cluster),FUN=mean)
+```
+
+Kategori 1 memiliki karakteristik penghasilan yang besar namun dengan pengeluaran yang sangat kecil.
+
+Kategori 2 merupakan kumpulan customer yang sudah berumur dengan penghasilan dan pengeluaran yang standar.
+
+Kategori 3 merupakan customer dengan kelompok umur muda yang memiliki penghsilan rendah namun pengeluaran yang cukup tinggi.
+
+Kategori 4 memiliki karakteristik yang cukup mirip seperti kategori 1 dalam hal penghasilan dan pengeluaran, hanya saja dalam kelompok umur yang lebih tua.
+
+Kategori 5 merupakan kelompok customer yang memiliki penghasilan tinggi dan diimbangi dengan pengeluaran yang tinggi pula.
+
+Kategori 6 memiliki karakteristik yang cukup mirip seperti kategori 2 dalam hal penghasilan dan pengeluaran, namun dalam kelompok umur yang lebih muda.
+
+
+
+
+```{r Centroid klaster a}
+library(MVN)
+plot(data_num, which = "map")
+```
+
+
